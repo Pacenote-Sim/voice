@@ -1,0 +1,31 @@
+{
+  "name": "voice",
+  "version": "0.1.0",
+  "author": "Pacenote",
+  "description": "Turns a line of text into speech with Cartesia, for the plugins and clients that have something to say to a driver.",
+  "interface_version": 3,
+  "binary": "voice",
+  "capabilities": {
+    "requests": [
+      "voice.speak"
+    ],
+    "network": true,
+    "calls": [
+      "api.cartesia.ai"
+    ],
+    "database": true,
+    "http": {
+      "title": "Voice",
+      "routes": [
+        {
+          "path": "/",
+          "access": "admin"
+        },
+        {
+          "path": "/speak",
+          "access": "driver"
+        }
+      ]
+    }
+  }
+}
