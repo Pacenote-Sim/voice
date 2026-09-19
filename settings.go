@@ -20,6 +20,7 @@ const (
 	SettingBitRate    = "bit_rate"
 	SettingSpeed      = "speed"
 	SettingKeepDays   = "keep_days"
+	SettingAtOnce     = "at_once"
 )
 
 // The models offered. A fixed list rather than a text field: a model id typed
@@ -132,6 +133,17 @@ func Settings() []plugin.Setting {
 			Default: "1.0",
 		},
 		{
+			Name:  SettingAtOnce,
+			Label: "Requests at a time",
+			Help: "What your plan allows in flight at once — two on the smallest, then three, five and fifteen. " +
+				"A plugin asking for a lap's lines asks for them together, so this is what keeps the vendor from " +
+				"refusing half of them. Anything over the limit waits its turn; a line that waits too long goes " +
+				"as words.",
+			Kind:        plugin.KindNumber,
+			Default:     "2",
+			Placeholder: "2",
+		},
+		{
 			Name:        SettingKeepDays,
 			Label:       "Keep spoken lines for",
 			Help:        "Days. A line already spoken is served again for nothing; this is how long it is kept. Zero keeps them for ever.",
@@ -154,6 +166,7 @@ type config struct {
 	bitRate    int
 	speed      float64
 	keepDays   int
+	atOnce     int
 }
 
 // configOf reads a call's settings. A value the host did not send falls back
@@ -178,6 +191,10 @@ func configOf(values plugin.Values, secrets plugin.Secrets) config {
 	}
 	if days, ok := values.Int(SettingKeepDays); ok {
 		c.keepDays = days
+	}
+	c.atOnce = DefaultAtOnce
+	if n, ok := values.Int(SettingAtOnce); ok && n > 0 {
+		c.atOnce = min(n, MaxAtOnce)
 	}
 	return c
 }

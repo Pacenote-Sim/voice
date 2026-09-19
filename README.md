@@ -31,9 +31,20 @@ enable, then set a key and a voice.
 | **Sample rate** | 24 kHz by default. |
 | **MP3 bit rate** | 64 kbit/s by default. |
 | **Speed** | 0.8–1.2×. A line for the corner ahead is heard at speed; a little quicker than a narrator is right. |
+| **Requests at a time** | What the plan allows in flight at once: two on the smallest, then three, five and fifteen. Two by default. |
 | **Keep spoken lines for** | Days a clip is kept after it was last served. 30 by default; zero keeps them for ever. |
 
 Without a key or a voice the plugin says it is not configured and every caller falls back to text.
+
+### Requests at a time
+
+Cartesia allows a fixed number of requests in flight at once and refuses the rest, and how many is
+what the subscription buys. A plugin asking for a lap's lines asks for them together, and a client
+speaking a line of its own arrives in the middle of that, so the limit is reached by ordinary use.
+
+Set this to what the plan allows. Anything over it waits its turn rather than being refused, and a
+line that waits longer than its caller can afford is answered as busy — nothing was spent, and the
+caller speaks the words itself. A line already spoken never waits at all: it comes from the cache.
 
 ## Asking it, as a plugin
 

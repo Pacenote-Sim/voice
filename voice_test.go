@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -315,4 +317,53 @@ func requestFor(cfg config, text, voiceID string) cartesiaRequest {
 		Model: cfg.model, VoiceID: voiceID, Language: cfg.language, Text: clean,
 		Container: cfg.container, SampleRate: cfg.sampleRate, BitRate: cfg.bitRate, Speed: cfg.speed,
 	}
+}
+
+// Four lines asked for at once, on a plan that allows two: all four are
+// spoken, two at a time, and none is refused.
+func TestLinesQueueForTheVendorRatherThanBeingRefused(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	var inside, peak atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		n := inside.Add(1)
+		for {
+			old := peak.Load()
+			if n <= old || peak.CompareAndSwap(old, n) {
+				break
+			}
+		}
+		time.Sleep(5 * time.Millisecond)
+		inside.Add(-1)
+		w.Header().Set("Content-Type", "audio/mpeg")
+		_, _ = w.Write([]byte("ID3audio"))
+	}))
+	t.Cleanup(srv.Close)
+	v := New(nil, slog.New(slog.DiscardHandler))
+	v.BaseURL = srv.URL
+	v.now = func() time.Time { return time.Date(2026, 9, 19, 12, 0, 0, 0, time.UTC) }
+
+	lines := []string{
+		`{"text":"Brake twenty metres later into Turn 4."}`,
+		`{"text":"Carry more speed through Turn 9."}`,
+		`{"text":"Get on the power earlier out of Turn 2."}`,
+		`{"text":"Ease the brake before the apex in Turn 7."}`,
+	}
+	var wg sync.WaitGroup
+	errs := make([]error, len(lines))
+	for i := range lines {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, errs[i] = ask(t, v, lines[i], func(q *plugin.Request) { q.Settings[SettingAtOnce] = "2" })
+		}()
+	}
+	wg.Wait()
+
+	for i, err := range errs {
+		r.NoError(err, "line %d was refused", i)
+	}
+	r.LessOrEqual(peak.Load(), int64(2), "the plan allows two at a time and more were sent")
+	r.Positive(peak.Load())
 }

@@ -29,6 +29,9 @@ type Voice struct {
 	BaseURL string
 	// now is the clock, injectable for tests.
 	now func() time.Time
+	// gate holds callers to the number of requests the operator's plan allows
+	// in flight at once.
+	gate gate
 }
 
 // New builds the plugin.

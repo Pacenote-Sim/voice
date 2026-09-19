@@ -25,6 +25,16 @@ import (
 // same body and gets the audio itself. Both get the same audio for the same
 // words, because a line already spoken is served from the cache for nothing.
 
+// DefaultAtOnce is how many lines are sent to the vendor at a time when the
+// operator has not said otherwise: what the smallest plan allows. MaxAtOnce is
+// the ceiling on that setting, well past the largest plan, because a number
+// typed in a box should not be able to become a denial of service against the
+// operator's own account.
+const (
+	DefaultAtOnce = 2
+	MaxAtOnce     = 64
+)
+
 // KindSpeak is the request another plugin asks this one for.
 const KindSpeak plugin.RequestKind = "voice.speak"
 
@@ -124,6 +134,14 @@ func (v *Voice) speak(ctx context.Context, cfg config, req SpeakRequest) (SpeakR
 				slog.String("reason", getErr.Error()))
 		}
 	}
+
+	// Past the cache, this line will reach the vendor, so it takes one of the
+	// requests the plan allows in flight and gives it back when it is done.
+	release, err := v.gate.enter(ctx, cfg.atOnce)
+	if err != nil {
+		return SpeakResponse{}, plugin.Usage{}, err
+	}
+	defer release()
 
 	audio, err := v.client(cfg).Speak(ctx, r)
 	characters := utf8.RuneCountInString(text)
